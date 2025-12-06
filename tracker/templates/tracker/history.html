@@ -1,0 +1,119 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Health Records</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #eef2f5; margin: 0; padding: 20px; }
+        h1 { text-align: center; color: #333; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        th, td { padding: 12px; text-align: center; border-bottom: 1px solid #ddd; }
+        th { background-color: #4CAF50; color: white; }
+        tr:nth-child(even) { background-color: #f7f9fc; }
+        tr:hover { background-color: #e6f2ff; }
+        .btn { padding: 6px 12px; border-radius: 6px; font-size: 14px; text-decoration: none; color: white; }
+        .edit-btn { background: #3498db; }
+        .edit-btn:hover { background: #2980b9; }
+        .delete-btn { background: #e74c3c; }
+        .delete-btn:hover { background: #c0392b; }
+        .links { text-align:center; margin-top: 20px; }
+        .links a { margin: 0 10px; color: #3498db; text-decoration:none; font-weight: bold; }
+        .links a:hover { text-decoration: underline; }
+        canvas { background: #fff; border-radius: 12px; padding: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+
+<h1>My Health Records</h1>
+
+<table>
+    <tr>
+        <th>Date</th>
+        <th>Weight (kg)</th>
+        <th>BMI</th>
+        <th>Calories Burned</th>
+        <th>Steps</th>
+        <th>Speed (km/h)</th>
+        <th>Actions</th>
+    </tr>
+    {% for record in records %}
+    <tr>
+        <td>{{ record.date|date:"Y-m-d H:i" }}</td>
+        <td>{{ record.weight }}</td>
+        <td>{{ record.bmi|default:"-" }}</td>
+        <td>{{ record.calories|default:"-" }}</td>
+        <td>{{ record.steps|default:"-" }}</td>
+        <td>{{ record.speed|default:"-" }}</td>
+        <td>
+            <a href="{% url 'tracker:edit_record' record.id %}" class="btn edit-btn">Edit</a>
+            <a href="{% url 'tracker:delete_record' record.id %}" class="btn delete-btn">Delete</a>
+        </td>
+    </tr>
+    {% empty %}
+    <tr>
+        <td colspan="7">No records found.</td>
+    </tr>
+    {% endfor %}
+</table>
+
+<!-- Chart Section -->
+<h2 style="text-align:center; margin-bottom: 10px;">Health Records Chart</h2>
+<div style="margin-top:20px;">
+    <canvas id="healthChart" width="800" height="400"></canvas>
+</div>
+
+<div class="links">
+    <a href="{% url 'tracker:bmi' %}">Back to Calculator</a> | 
+    <a href="{% url 'tracker:logout' %}">Logout</a>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ctx = document.getElementById('healthChart').getContext('2d');
+const healthChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: {{ chart_dates|safe }},  // Dates of records
+        datasets: [
+            {
+                label: 'BMI',
+                data: {{ chart_bmis|safe }},
+                borderColor: 'rgba(75, 192, 192, 1)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                fill: false,
+                tension: 0.2
+            },
+            {
+                label: 'Calories Burned',
+                data: {{ chart_calories|safe }},
+                borderColor: 'rgba(255, 99, 132, 1)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                fill: false,
+                tension: 0.2
+            },
+            {
+                label: 'Steps',
+                data: {{ chart_steps|safe }},
+                borderColor: 'rgba(54, 162, 235, 1)',
+                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                fill: false,
+                tension: 0.2
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: { 
+            legend: { position: 'top' },
+            title: { display: true, text: 'Your Health Records Over Time' }
+        },
+        scales: {
+            y: { beginAtZero: true },
+            x: { title: { display: true, text: 'Date' } }
+        }
+    }
+});
+</script>
+
+</body>
+</html>

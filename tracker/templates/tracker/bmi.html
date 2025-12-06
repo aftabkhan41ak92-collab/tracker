@@ -1,0 +1,216 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Health Tracker</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #f4f6f8; 
+            margin: 0; 
+            padding: 0; 
+            color: #333;
+        }
+
+        header {
+            text-align: center;
+            padding: 30px 20px 10px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 32px;
+            font-weight: 600;
+        }
+
+        .main {
+            display: flex;
+            flex-wrap: wrap;
+            max-width: 1000px;
+            margin: 20px auto;
+            gap: 20px;
+        }
+
+        .form-column {
+            flex: 1;
+            min-width: 320px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.08);
+        }
+
+        .results-column {
+            flex: 1;
+            min-width: 300px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.08);
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            color: #fff;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover { opacity: 0.9; }
+        .bmi-btn { background: #4CAF50; }
+        .calories-btn { background: #f39c12; }
+        .save-btn { background: #3498db; }
+
+        .results h2 {
+            margin: 0 0 10px;
+            font-size: 24px;
+        }
+
+        .results p {
+            margin: 5px 0;
+            color: #555;
+            font-size: 16px;
+        }
+
+        .suggestion {
+            border-top: 1px solid #ccc;
+            margin-top: 15px;
+            padding-top: 10px;
+            background: #e6f7ff;
+            border-left: 5px solid #1e90ff;
+        }
+
+        .links {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .links a {
+            margin: 0 10px;
+            color: #3498db;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        .links a:hover {
+            text-decoration: underline;
+        }
+
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Health Tracker</h1>
+</header>
+
+<div class="main">
+    <!-- Left Column: Form -->
+    <div class="form-column">
+        <form method="POST">
+            {% csrf_token %}
+
+            <label>{{ form.gender.label_tag }}</label>
+            {{ form.gender }}
+
+            <label>{{ form.weight.label_tag }}</label>
+            {{ form.weight }}
+
+            <label>{{ form.height.label_tag }}</label>
+            {{ form.height }}
+
+            <label>{{ form.steps.label_tag }}</label>
+            {{ form.steps }}
+
+            <label>{{ form.speed.label_tag }}</label>
+            {{ form.speed }}
+
+            <label>{{ form.bmi.label_tag }}</label>
+            {{ form.bmi }}
+
+            <label>{{ form.calories.label_tag }}</label>
+            {{ form.calories }}
+
+            <div class="buttons">
+                <button type="submit" name="calculate_bmi" class="bmi-btn">Calculate BMI</button>
+                <button type="submit" name="calculate_calories" class="calories-btn">Calculate Calories</button>
+                <button type="submit" name="save_record" class="save-btn">Save Record</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Right Column: Results -->
+    <div class="results-column">
+        {% if bmi %}
+        <div class="results">
+            <h2>BMI: {{ bmi }}</h2>
+            {% with bmi_value=bmi %}
+                {% if bmi_value < 18.5 %}
+                    <p>Underweight</p>
+                {% elif bmi_value >= 18.5 and bmi_value < 25 %}
+                    <p>Normal weight</p>
+                {% elif bmi_value >= 25 and bmi_value < 30 %}
+                    <p>Overweight</p>
+                {% else %}
+                    <p>Obese</p>
+                {% endif %}
+            {% endwith %}
+            
+            {% if bmi %}
+    <p><strong>Your BMI:</strong> {{ bmi }}</p>
+    <p><strong>Suggestion:</strong> {{ bmi_msg }}</p>
+    <p><strong>Workout Tip:</strong> {{ bmi_workout }}</p>
+{% endif %}
+
+        </div>
+        {% endif %}
+
+        {% if calories %}
+        <div class="results">
+            <h2>{{ calories }} kcal</h2>
+            <p>Calories Burned</p>
+        </div>
+        {% endif %}
+
+        {% if suggestion %}
+        <div class="suggestion">
+            <strong>Workout Suggestion:</strong>
+            <p>{{ suggestion }}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="links">
+    <a href="{% url 'tracker:history' %}">View History</a> |
+    <a href="{% url 'tracker:logout' %}">Logout</a>
+</div>
+
+</body>
+</html>

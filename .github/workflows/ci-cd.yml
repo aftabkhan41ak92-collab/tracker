@@ -3,7 +3,7 @@ name: Python Quality Gate & EB Deployment
 on:
   push:
     branches:
-      - main 
+      - main
 
 permissions:
   contents: read
@@ -39,7 +39,7 @@ jobs:
         run: pylint $(git ls-files '*.py') --fail-under=7.0
 
   sonarqube_scan:
-    needs: pylint_check 
+    needs: pylint_check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code (Full Depth)
@@ -79,7 +79,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   deploy_eb:
-    needs: sonarqube_scan 
+    needs: sonarqube_scan
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS Credentials (Assume Role)
@@ -95,7 +95,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: "3.9"
 
       - name: Restore pip cache
         uses: actions/cache@v3

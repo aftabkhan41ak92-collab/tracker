@@ -41,6 +41,10 @@ jobs:
   sonarqube_scan:
     needs: pylint_check
     runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_PROJECT_KEY: "aftabkhan41ak92-collab_tracker"
+      SONAR_ORGANIZATION: "aftabkhan41ak92-collab"
     steps:
       - name: Checkout Code (Full Depth)
         uses: actions/checkout@v4
@@ -65,16 +69,14 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      # SonarCloud Scan with Quality Gate wait
-      - name: SonarCloud Scan
+      - name: SonarCloud Scan (with Quality Gate wait)
         uses: SonarSource/sonarcloud-github-action@v2
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_PROJECT_KEY: "aftabkhan41ak92-collab_tracker"
-          SONAR_ORGANIZATION: "aftabkhan41ak92-collab"
         with:
-          args: "-Dsonar.projectKey=$SONAR_PROJECT_KEY -Dsonar.organization=$SONAR_ORGANIZATION -Dsonar.sources=. -Dsonar.qualitygate.wait=true"
-          # Note: No comments inside the args string
+          args: >
+            -Dsonar.projectKey=${{ env.SONAR_PROJECT_KEY }}
+            -Dsonar.organization=${{ env.SONAR_ORGANIZATION }}
+            -Dsonar.sources=.
+            -Dsonar.qualitygate.wait=true
 
   deploy_eb:
     needs: sonarqube_scan

@@ -1,4 +1,3 @@
-
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
@@ -7,10 +6,6 @@ from django.contrib import messages
 from .models import HealthRecord
 from .forms import HealthForm
 
-
-# -------------------------
-# BMI Suggestions Helper
-# -------------------------
 def bmi_suggestion(bmi):
     if bmi < 18.5:
         return "Underweight – Consider a nutritious diet rich in protein and healthy fats, and aim for regular meals to gain healthy weight."
@@ -21,10 +16,6 @@ def bmi_suggestion(bmi):
     else:
         return "Obese – Consult a healthcare professional and adopt a structured diet and exercise plan."
 
-
-# -------------------------
-# Workout Suggestion Helper
-# -------------------------
 def workout_suggestion(bmi):
     if bmi < 18.5:
         return "Focus on strength training (weight lifting, push-ups, squats) and light cardio like walking or cycling."
@@ -35,17 +26,9 @@ def workout_suggestion(bmi):
     else:
         return "Start with low-impact exercises like walking, water aerobics, chair exercises, and light strength training. Gradually increase intensity."
 
-
-# -------------------------
-# Welcome Page
-# -------------------------
 def welcome(request):
     return render(request, 'tracker/welcome.html')
 
-
-# -------------------------
-# Signup
-# -------------------------
 def signup_view(request):
     if request.method == 'POST':
         username = request.POST['username']
@@ -61,10 +44,6 @@ def signup_view(request):
 
     return render(request, 'tracker/signup.html')
 
-
-# -------------------------
-# Login
-# -------------------------
 def login_view(request):
     if request.method == 'POST':
         username = request.POST['username']
@@ -79,18 +58,10 @@ def login_view(request):
 
     return render(request, 'tracker/login.html')
 
-
-# -------------------------
-# Logout
-# -------------------------
 def logout_view(request):
     logout(request)
     return redirect('tracker:welcome')
 
-
-# -------------------------
-# BMI & Calories Calculator with Chart
-# -------------------------
 @login_required
 def bmi_calculator(request):
     bmi = None
@@ -108,7 +79,6 @@ def bmi_calculator(request):
             form.initial['bmi'] = bmi
             form.fields['bmi'].widget.attrs['value'] = bmi
 
-            # BMI suggestions and workout tips
             bmi_msg = bmi_suggestion(bmi)
             bmi_workout = workout_suggestion(bmi)
 
@@ -138,14 +108,12 @@ def bmi_calculator(request):
             bmi = form.cleaned_data.get('bmi')
             calories = form.cleaned_data.get('calories')
 
-            # Recalculate suggestions after saving
             if bmi:
                 bmi_msg = bmi_suggestion(bmi)
                 bmi_workout = workout_suggestion(bmi)
 
-            form = HealthForm()  # reset form
+            form = HealthForm()
 
-    # Fetch previous records for chart
     history = HealthRecord.objects.filter(user=request.user).order_by('date')
     chart_dates = [record.date.strftime('%Y-%m-%d') for record in history]
     chart_bmis = [record.bmi for record in history]
@@ -164,10 +132,6 @@ def bmi_calculator(request):
         'chart_steps': chart_steps,
     })
 
-
-# -------------------------
-# History View
-# -------------------------
 @login_required
 def history(request):
     records = HealthRecord.objects.filter(user=request.user).order_by('date')
@@ -185,9 +149,6 @@ def history(request):
         'chart_steps': chart_steps,
     })
 
-# -------------------------
-# Edit Record (recalculates BMI & calories)
-# -------------------------
 @login_required
 def edit_record(request, pk):
     record = get_object_or_404(HealthRecord, pk=pk, user=request.user)
@@ -201,11 +162,9 @@ def edit_record(request, pk):
             record.steps = form.cleaned_data.get('steps') or 0
             record.speed = form.cleaned_data.get('speed') or 0
 
-            # Recalculate BMI
             height_m = record.height_cm / 100
             record.bmi = round(record.weight / (height_m ** 2), 2)
 
-            # Recalculate Calories
             step_length = 0.762
             distance_km = (record.steps * step_length) / 1000
             speed_factor = 1 + (record.speed - 5) * 0.05
@@ -227,10 +186,6 @@ def edit_record(request, pk):
 
     return render(request, 'tracker/edit_record.html', {'form': form, 'record': record})
 
-
-# -------------------------
-# Delete Record
-# -------------------------
 @login_required
 def delete_record(request, record_id):
     record = get_object_or_404(HealthRecord, id=record_id, user=request.user)

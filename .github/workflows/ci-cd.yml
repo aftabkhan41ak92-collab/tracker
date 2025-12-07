@@ -66,14 +66,15 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+        uses: SonarSource/sonarcloud-github-action@v2
         with:
           organization: "aftabkhan41ak92-collab"
           projectKey: "aftabkhan41ak92-collab_tracker"
-          token: ${{ secrets.SONAR_TOKEN }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-      - name: Wait for Quality Gate Result
-        uses: SonarSource/sonarqube-quality-gate-action@v1.2.0
+      - name: SonarCloud Quality Gate
+        uses: SonarSource/sonarcloud-quality-gate-action@v1
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

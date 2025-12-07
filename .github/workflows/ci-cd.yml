@@ -65,22 +65,20 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: SonarCloud Scan & Quality Gate Check (FIXED: Combined into one step)
+      - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
         env:
-          # SonarScanner properties passed via environment variables
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_PROJECTKEY: "aftabkhan41ak92-collab_tracker"
+          SONAR_PROJECT_KEY: "aftabkhan41ak92-collab_tracker"
           SONAR_ORGANIZATION: "aftabkhan41ak92-collab"
         with:
-          # Action inputs to enable the built-in Quality Gate waiting feature
-          waitForQualityGate: true
-          timeoutMinutes: 5
-          # Retained the 'args' block for explicit 'sonar.sources' definition if needed
-          args: >
-            -Dsonar.sources=.
-            
-      # ❌ The separate 'SonarCloud Quality Gate' step is removed to resolve the error.
+          args: "-Dsonar.projectKey=$SONAR_PROJECT_KEY -Dsonar.organization=$SONAR_ORGANIZATION -Dsonar.sources=."
+
+      - name: SonarCloud Quality Gate
+        uses: SonarSource/sonarcloud-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   deploy_eb:
     needs: sonarqube_scan

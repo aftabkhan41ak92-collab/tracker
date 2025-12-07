@@ -65,14 +65,21 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: SonarCloud Scan & Quality Gate Check (Simplified)
-        # ✅ FIX APPLIED: Single action now handles both scan and waiting for the Quality Gate.
+      - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: "aftabkhan41ak92-collab_tracker"
+          SONAR_ORGANIZATION: "aftabkhan41ak92-collab"
         with:
-          organization: "aftabkhan41ak92-collab"
-          projectKey: "aftabkhan41ak92-collab_tracker"
-          waitForQualityGate: true # New input to enable the gate check
-          timeoutMinutes: 5        # New input for the wait timeout
+          args: >
+            -Dsonar.projectKey=$SONAR_PROJECT_KEY
+            -Dsonar.organization=$SONAR_ORGANIZATION
+            -Dsonar.sources=.
+
+      - name: SonarCloud Quality Gate
+        uses: SonarSource/sonarcloud-quality-gate-action@v1
+        timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
@@ -81,7 +88,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS Credentials (Assume Role)
-        # 🔒 Best Practice: Uses OpenID Connect (OIDC) via id-token: write permission
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
@@ -109,7 +115,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           python manage.py collectstatic --noinput
-          # Create zip package, excluding sensitive/temporary files
           zip -r deploy.zip . -x "*.git*" "venv/*" "__pycache__/*" "*.sqlite3"
 
       - name: Deploy to EB

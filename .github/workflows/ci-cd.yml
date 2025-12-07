@@ -76,7 +76,7 @@ jobs:
           SONAR_HOST_URL: https://sonarcloud.io
       - name: Wait for Quality Gate Result
         # This crucial step ensures deployment only happens if the analysis passes
-        uses: SonarSource/sonarqube-quality-gate-action@f3c1d4715f5d60f5c90b8ce1c93a8d438947f610
+        uses: SonarSource/sonarqube-quality-gate-action@71904d9fa22a6118a8f1589d81d7632607996c56
         timeout-minutes: 5 
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

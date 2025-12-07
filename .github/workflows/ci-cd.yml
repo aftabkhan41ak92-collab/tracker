@@ -1,61 +1,108 @@
-name: CI/CD Pipeline
+name: Python Quality Gate & EB Deployment
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    branches:
+      - main 
 
+# REQUIRED for OIDC/LabRole: Grants permission to create the JWT for role assumption
 permissions:
   contents: read
-  id-token: write  # Needed to assume AWS role via OIDC
+  id-token: write # This is mandatory for assuming the AWS IAM role
 
 jobs:
-pipeline:
-  runs-on: ubuntu-latest
+  # ------------------------------------------------------------------
+  # 1. PYLINT STATIC ANALYSIS
+  # ------------------------------------------------------------------
+  pylint_check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-  steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
 
-  - name: Set up Python
-    uses: actions/setup-python@v5
-    with:
-      python-version: "3.9"
+      - name: Install dependencies & Pylint
+        run: |
+          python -m pip install --upgrade pip
+          # Install production dependencies and Pylint
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install pylint
 
-  - name: Install dependencies
-    run: |
-      python -m pip install --upgrade pip
-      if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      pip install pylint sonar-scanner awscli
+      - name: Run Pylint Check (Fail under 7.0 score)
+        # Scan all .py files tracked by Git and enforce quality gate
+        run: pylint $(git ls-files '*.py') --fail-under=7.0
+  
+  # ------------------------------------------------------------------
+  # 2. SONARQUBE QUALITY GATE
+  # ------------------------------------------------------------------
+  sonarqube_scan:
+    # Dependency: Only runs if the Pylint job succeeds
+    needs: pylint_check 
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code (Full Depth)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Mandatory for SonarQube's deep analysis
 
-  - name: Run Pylint
-    run: |
-      pylint $(git ls-files '*.py')
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
 
-  - name: SonarCloud Analysis
-    env:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-    run: |
-      sonar-scanner \
-          -Dsonar.projectKey=aftabkhan41ak92-collab_tracker \
-          -Dsonar.organization=aftabkhan41ak92-collab \
-          -Dsonar.host.url=https://sonarcloud.io \
-          -Dsonar.login=$SONAR_TOKEN
+      - name: Wait for Quality Gate Result
+        # This action ensures the workflow fails if SonarQube's quality gate fails
+        uses: SonarSource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5 
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-  - name: Configure AWS Role
-    uses: aws-actions/configure-aws-credentials@v2
-    with:
-      role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-      aws-region: ${{ secrets.AWS_REGION }}
+  # ------------------------------------------------------------------
+  # 3. ELASTIC BEANSTALK DEPLOYMENT
+  # ------------------------------------------------------------------
+  deploy_eb:
+    # Dependency: Only runs if the SonarQube Quality Gate passes
+    needs: sonarqube_scan 
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. AUTHENTICATION: ASSUME LABROLE VIA OIDC
+      - name: Configure AWS Credentials (Assume Role)
+        # This exchanges the OIDC token for temporary AWS credentials using the LabRole ARN
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }} # Must be the LabRole ARN
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-session-name: github-deploy-session
 
-  - name: Deploy to Elastic Beanstalk
-    run: |
-      zip -r deploy.zip .
-      aws elasticbeanstalk create-application-version \
-        --application-name ${{ secrets.EB_APPLICATION }} \
-        --version-label v${{ github.run_number }} \
-        --source-bundle S3Bucket=""elasticbeanstalk-us-east-1-676882682744"",S3Key="deploy.zip"
-      aws elasticbeanstalk update-environment \
-        --environment-name ${{ secrets.EB_ENVIRONMENT }} \
-        --version-label v${{ github.run_number }}
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. PREPARE DEPLOYMENT ARTIFACT
+      - name: Setup Python & Install Dependencies
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9' 
+      
+      - name: Install Dependencies & Create Deployment Bundle
+        run: |
+          # Install dependencies to ensure all files are present for zipping
+          pip install -r requirements.txt
+          # If this is a Django app, collect static files
+          python manage.py collectstatic --noinput 
+          # Create zip for deployment, excluding unnecessary files
+          zip -r deploy.zip . -x "*.git*" "venv/*" "__pycache__/*" "*.sqlite3"
+
+      # 3. DEPLOY
+      - name: Deploy to EB
+        uses: einaregilsson/beanstalk-deploy@v21
+        with:
+          region: ${{ secrets.AWS_REGION }}
+          application_name: ${{ secrets.EB_APPLICATION_NAME }}
+          environment_name: ${{ secrets.EB_ENVIRONMENT_NAME }}
+          deployment_package: deploy.zip

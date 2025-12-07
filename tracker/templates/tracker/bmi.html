@@ -136,26 +136,41 @@
         <form method="POST">
             {% csrf_token %}
 
-            <label>{{ form.gender.label_tag }}</label>
-            {{ form.gender }}
+           <div class="form-group">
+    {{ form.gender.label_tag }}
+    {{ form.gender }}
+</div>
 
-            <label>{{ form.weight.label_tag }}</label>
-            {{ form.weight }}
+<div class="form-group">
+    {{ form.weight.label_tag }}
+    {{ form.weight }}
+</div>
 
-            <label>{{ form.height.label_tag }}</label>
-            {{ form.height }}
+<div class="form-group">
+    {{ form.height.label_tag }}
+    {{ form.height }}
+</div>
 
-            <label>{{ form.steps.label_tag }}</label>
-            {{ form.steps }}
+<div class="form-group">
+    {{ form.steps.label_tag }}
+    {{ form.steps }}
+</div>
 
-            <label>{{ form.speed.label_tag }}</label>
-            {{ form.speed }}
+<div class="form-group">
+    {{ form.speed.label_tag }}
+    {{ form.speed }}
+</div>
 
-            <label>{{ form.bmi.label_tag }}</label>
-            {{ form.bmi }}
+<div class="form-group">
+    {{ form.bmi.label_tag }}
+    {{ form.bmi }}
+</div>
 
-            <label>{{ form.calories.label_tag }}</label>
-            {{ form.calories }}
+<div class="form-group">
+    {{ form.calories.label_tag }}
+    {{ form.calories }}
+</div>
+
 
             <div class="buttons">
                 <button type="submit" name="calculate_bmi" class="bmi-btn">Calculate BMI</button>

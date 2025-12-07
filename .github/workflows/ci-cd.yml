@@ -66,20 +66,126 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@master
+        uses: SonarSource/sonarcloud-github-action@master
         with:
-          projectBaseDir: .
-          args: >
-            -Dsonar.projectKey=aftabkhan41ak92-collab_tracker
-            -Dsonar.organization=aftabkhan41ak92-collab
-            -Dsonar.host.url=https://sonarcloud.io
-            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+          organization: "aftabkhan41ak92-collab"
+          projectKey: "aftabkhan41ak92-collab_tracker"
+          token: ${{ secrets.SONAR_TOKEN }}
 
-      - name: Wait for Quality Gate Result
-        uses: SonarSource/sonarqube-quality-gate-action@master
-        timeout-minutes: 5 
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  deploy_eb:
+    needs: sonarqube_scan 
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials (Assume Role)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-session-name: github-deploy-session
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Restore pip cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies & Create Deployment Bundle
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python manage.py collectstatic --noinput
+          zip -r deploy.zip . -x "*.git*" "venv/*" "__pycache__/*" "*.sqlite3"
+
+      - name: Deploy to EB
+        uses: einaregilsson/beanstalk-deploy@v21
+        with:
+          region: ${{ secrets.AWS_REGION }}
+          application_name: ${{ secrets.EB_APPLICATION_NAME }}
+          environment_name: ${{ secrets.EB_ENVIRONMENT_NAME }}
+          deployment_package: deploy.zip
+name: Python Quality Gate & EB Deployment
+
+on:
+  push:
+    branches:
+      - main 
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  pylint_check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Cache pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies & Pylint
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install pylint
+
+      - name: Run Pylint Check (Fail under 7.0 score)
+        run: pylint $(git ls-files '*.py') --fail-under=7.0
+
+  sonarqube_scan:
+    needs: pylint_check 
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code (Full Depth)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Restore pip cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        with:
+          organization: "aftabkhan41ak92-collab"
+          projectKey: "aftabkhan41ak92-collab_tracker"
+          token: ${{ secrets.SONAR_TOKEN }}
 
   deploy_eb:
     needs: sonarqube_scan 

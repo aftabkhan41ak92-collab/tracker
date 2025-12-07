@@ -67,13 +67,13 @@ jobs:
         # 2. FIX: We remove the 'token' input from 'with:' and rely on 'env:'
         uses: SonarSource/sonarqube-scan-action@v5.0.0
         with:
-          organization: "aftabkhan41ak92-collab"
-          projectKey: "aftabkhan41ak92-collab_tracker"
-          # token: ${{ secrets.SONAR_TOKEN }} <--- REMOVED THIS LINE
+         # Pass required properties directly as scanner arguments
+          args: >
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }} # Auth token is passed via environment variable
-          SONAR_HOST_URL: https://sonarcloud.io # Host URL is required for SonarCloud
-
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
       - name: Wait for Quality Gate Result
         # This crucial step ensures deployment only happens if the analysis passes
         uses: SonarSource/sonarqube-quality-gate-action@master

@@ -65,7 +65,7 @@ jobs:
       - name: SonarCloud Scan
         # 1. FIX: Use the recommended sonarqube-scan-action
         # 2. FIX: We remove the 'token' input from 'with:' and rely on 'env:'
-        uses: SonarSource/sonarqube-scan-action@v5.0.0
+        uses: SonarSource/sonarqube-scan-action@2f77a1e
         with:
          # Pass required properties directly as scanner arguments
           args: >

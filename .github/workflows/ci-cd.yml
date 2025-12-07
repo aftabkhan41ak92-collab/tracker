@@ -69,11 +69,11 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@master
         with:
           projectBaseDir: .
-          extraProperties: |
-            sonar.projectKey=aftabkhan41ak92-collab_tracker
-            sonar.organization=aftabkhan41ak92-collab
-            sonar.host.url=https://sonarcloud.io
-            sonar.login=${{ secrets.SONAR_TOKEN }}
+          args: >
+            -Dsonar.projectKey=aftabkhan41ak92-collab_tracker
+            -Dsonar.organization=aftabkhan41ak92-collab
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
       - name: Wait for Quality Gate Result
         uses: SonarSource/sonarqube-quality-gate-action@master

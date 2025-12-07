@@ -5,15 +5,11 @@ on:
     branches:
       - main 
 
-# REQUIRED for OIDC/LabRole: Grants permission to create the JWT for role assumption
 permissions:
   contents: read
-  id-token: write # This is mandatory for assuming the AWS IAM role
+  id-token: write
 
 jobs:
-  # ------------------------------------------------------------------
-  # 1. PYLINT STATIC ANALYSIS
-  # ------------------------------------------------------------------
   pylint_check:
     runs-on: ubuntu-latest
     steps:
@@ -25,80 +21,100 @@ jobs:
         with:
           python-version: "3.9"
 
+      - name: Cache pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Install dependencies & Pylint
         run: |
           python -m pip install --upgrade pip
-          # Install production dependencies and Pylint
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           pip install pylint
 
       - name: Run Pylint Check (Fail under 7.0 score)
-        # Scan all .py files tracked by Git and enforce quality gate
         run: pylint $(git ls-files '*.py') --fail-under=7.0
-  
-  # ------------------------------------------------------------------
-  # 2. SONARQUBE QUALITY GATE
-  # ------------------------------------------------------------------
+
   sonarqube_scan:
-    # Dependency: Only runs if the Pylint job succeeds
     needs: pylint_check 
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code (Full Depth)
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Mandatory for SonarQube's deep analysis
+          fetch-depth: 0
 
-      - name: SonarQube Scan
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Restore pip cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@master
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: https://sonarcloud.io
+        with:
+          projectBaseDir: .
+          extraProperties: |
+            sonar.projectKey=aftabkhan41ak92-collab_tracker
+            sonar.organization=aftabkhan41ak92-collab
+            sonar.host.url=https://sonarcloud.io
+            sonar.login=${{ secrets.SONAR_TOKEN }}
 
       - name: Wait for Quality Gate Result
-        # This action ensures the workflow fails if SonarQube's quality gate fails
         uses: SonarSource/sonarqube-quality-gate-action@master
         timeout-minutes: 5 
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-  # ------------------------------------------------------------------
-  # 3. ELASTIC BEANSTALK DEPLOYMENT
-  # ------------------------------------------------------------------
   deploy_eb:
-    # Dependency: Only runs if the SonarQube Quality Gate passes
     needs: sonarqube_scan 
     runs-on: ubuntu-latest
-    
     steps:
-      # 1. AUTHENTICATION: ASSUME LABROLE VIA OIDC
       - name: Configure AWS Credentials (Assume Role)
-        # This exchanges the OIDC token for temporary AWS credentials using the LabRole ARN
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }} # Must be the LabRole ARN
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
           role-session-name: github-deploy-session
 
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 2. PREPARE DEPLOYMENT ARTIFACT
-      - name: Setup Python & Install Dependencies
-        uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.9' 
-      
-      - name: Install Dependencies & Create Deployment Bundle
+          python-version: '3.9'
+
+      - name: Restore pip cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies & Create Deployment Bundle
         run: |
-          # Install dependencies to ensure all files are present for zipping
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
-          # If this is a Django app, collect static files
-          python manage.py collectstatic --noinput 
-          # Create zip for deployment, excluding unnecessary files
+          python manage.py collectstatic --noinput
           zip -r deploy.zip . -x "*.git*" "venv/*" "__pycache__/*" "*.sqlite3"
 
-      # 3. DEPLOY
       - name: Deploy to EB
         uses: einaregilsson/beanstalk-deploy@v21
         with:

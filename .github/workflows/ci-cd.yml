@@ -7,9 +7,12 @@ on:
 
 permissions:
   contents: read
-  id-token: write
+  id-token: write # Required for AWS OIDC Role Assumption (LabRole)
 
 jobs:
+  # ------------------------------------------------------------------
+  # 1. PYLINT STATIC ANALYSIS
+  # ------------------------------------------------------------------
   pylint_check:
     runs-on: ubuntu-latest
     steps:
@@ -33,53 +36,63 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # Ensure Pylint is installed after dependencies for accurate analysis
           pip install pylint
 
       - name: Run Pylint Check (Fail under 7.0 score)
         run: pylint $(git ls-files '*.py') --fail-under=7.0
-
+  
+  # ------------------------------------------------------------------
+  # 2. SONARQUBE QUALITY GATE (FIXED) 🛡️
+  # ------------------------------------------------------------------
   sonarqube_scan:
-    needs: pylint_check 
+    needs: pylint_check  
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code (Full Depth)
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # Mandatory for SonarQube analysis
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.9"
-
-      - name: Restore pip cache
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      
+      # Removed redundant pip cache/install steps from the original job,
+      # as dependencies aren't needed just for the Sonar Scanner CLI execution.
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+        # 1. FIX: Use the recommended sonarqube-scan-action
+        # 2. FIX: We remove the 'token' input from 'with:' and rely on 'env:'
+        uses: SonarSource/sonarqube-scan-action@v5.0.0
         with:
           organization: "aftabkhan41ak92-collab"
           projectKey: "aftabkhan41ak92-collab_tracker"
-          token: ${{ secrets.SONAR_TOKEN }}
+          # token: ${{ secrets.SONAR_TOKEN }} <--- REMOVED THIS LINE
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }} # Auth token is passed via environment variable
+          SONAR_HOST_URL: https://sonarcloud.io # Host URL is required for SonarCloud
 
+      - name: Wait for Quality Gate Result
+        # This crucial step ensures deployment only happens if the analysis passes
+        uses: SonarSource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5 
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # ------------------------------------------------------------------
+  # 3. ELASTIC BEANSTALK DEPLOYMENT 🚀
+  # ------------------------------------------------------------------
   deploy_eb:
-    needs: sonarqube_scan 
+    needs: sonarqube_scan # Only runs if SonarQube quality gate passes
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS Credentials (Assume Role)
+        # Uses the id-token: write permission to assume the LabRole via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }} # LabRole ARN
           aws-region: ${{ secrets.AWS_REGION }}
           role-session-name: github-deploy-session
 

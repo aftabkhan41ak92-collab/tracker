@@ -1,3 +1,4 @@
+
 name: Python Quality Gate & EB Deployment
 
 on:
@@ -65,20 +66,18 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: SonarCloud Scan
+      - name: SonarCloud Scan (with Quality Gate wait)
         uses: SonarSource/sonarcloud-github-action@v2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_PROJECT_KEY: "aftabkhan41ak92-collab_tracker"
           SONAR_ORGANIZATION: "aftabkhan41ak92-collab"
         with:
-          args: "-Dsonar.projectKey=$SONAR_PROJECT_KEY -Dsonar.organization=$SONAR_ORGANIZATION -Dsonar.sources=."
-
-      - name: SonarCloud Quality Gate
-        uses: SonarSource/sonarcloud-quality-gate-action@v1
-        timeout-minutes: 5
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          args: >
+            -Dsonar.projectKey=$SONAR_PROJECT_KEY
+            -Dsonar.organization=$SONAR_ORGANIZATION
+            -Dsonar.sources=.
+            -Dsonar.qualitygate.wait=true   # WAIT for Quality Gate before finishing
 
   deploy_eb:
     needs: sonarqube_scan

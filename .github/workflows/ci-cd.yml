@@ -76,7 +76,7 @@ jobs:
           SONAR_HOST_URL: https://sonarcloud.io
       - name: Wait for Quality Gate Result
         # This crucial step ensures deployment only happens if the analysis passes
-        uses: SonarSource/sonarqube-quality-gate-action@master
+        uses: SonarSource/sonarqube-quality-gate-action@f3c1d47
         timeout-minutes: 5 
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -90,7 +90,7 @@ jobs:
     steps:
       - name: Configure AWS Credentials (Assume Role)
         # Uses the id-token: write permission to assume the LabRole via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@f5f3073
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }} # LabRole ARN
           aws-region: ${{ secrets.AWS_REGION }}
@@ -120,7 +120,7 @@ jobs:
           zip -r deploy.zip . -x "*.git*" "venv/*" "__pycache__/*" "*.sqlite3"
 
       - name: Deploy to EB
-        uses: einaregilsson/beanstalk-deploy@v21
+        uses: einaregilsson/beanstalk-deploy@6f90d16
         with:
           region: ${{ secrets.AWS_REGION }}
           application_name: ${{ secrets.EB_APPLICATION_NAME }}

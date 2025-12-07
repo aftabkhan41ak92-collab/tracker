@@ -66,6 +66,7 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
       - name: SonarCloud Scan
+        # FIXED: use stable tag @v2 instead of @master
         uses: SonarSource/sonarcloud-github-action@v2
         with:
           organization: "aftabkhan41ak92-collab"
@@ -74,6 +75,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
       - name: SonarCloud Quality Gate
+        # FIXED: Capitalized 'SonarSource' (GitHub is case-sensitive)
         uses: SonarSource/sonarcloud-quality-gate-action@v1
         timeout-minutes: 5
         env:

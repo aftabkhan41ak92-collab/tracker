@@ -1,21 +1,27 @@
+"""Views for the Health Tracker app."""
+
+from datetime import datetime
+from typing import List, Optional
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+
 from .models import HealthRecord
 from .forms import HealthForm
 
 
-def bmi_suggestion(bmi):
-    """
-    Suggest BMI advice based on BMI value.
-    """
+# ----------------------
+# Helper Functions
+# ----------------------
+def bmi_suggestion(bmi: float) -> str:
+    """Suggest BMI advice based on BMI value."""
     if bmi < 18.5:
         return (
-            "Underweight – Consider a nutritious diet rich in protein and healthy fats, "
-            "and aim for regular meals to gain healthy weight."
+            "Underweight – Consider a nutritious diet rich in protein "
+            "and healthy fats, and aim for regular meals to gain healthy weight."
         )
     if 18.5 <= bmi < 25:
         return "Normal – Keep maintaining your healthy lifestyle with balanced diet and regular exercise."
@@ -27,33 +33,30 @@ def bmi_suggestion(bmi):
     return "Obese – Consult a healthcare professional and adopt a structured diet and exercise plan."
 
 
-def workout_suggestion(bmi):
-    """
-    Suggest workout advice based on BMI value.
-    """
+def workout_suggestion(bmi: float) -> str:
+    """Suggest workout advice based on BMI value."""
     if bmi < 18.5:
         return "Focus on strength training (weight lifting, push-ups, squats) and light cardio like walking or cycling."
     if 18.5 <= bmi < 25:
-        return "Maintain fitness with a mix of cardio (running, swimming) and strength training. Include core and flexibility exercises."
+        return "Maintain fitness with a mix of cardio and strength training. Include core and flexibility exercises."
     if 25 <= bmi < 30:
-        return "Moderate-intensity cardio (brisk walking, cycling) plus full-body strength training. Low-impact activities to protect joints."
-    return "Start with low-impact exercises like walking, water aerobics, chair exercises, and light strength training. Gradually increase intensity."
+        return "Moderate-intensity cardio plus full-body strength training. Low-impact activities to protect joints."
+    return "Start with low-impact exercises and gradually increase intensity."
 
 
+# ----------------------
+# Authentication Views
+# ----------------------
 def welcome(request):
-    """
-    Render the welcome page.
-    """
+    """Render the welcome page."""
     return render(request, 'tracker/welcome.html')
 
 
 def signup_view(request):
-    """
-    Handle user signup.
-    """
+    """Handle user signup."""
     if request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['password']
+        username = request.POST.get('username')
+        password = request.POST.get('password')
 
         if User.objects.filter(username=username).exists():
             messages.error(request, 'Username already exists')
@@ -67,12 +70,10 @@ def signup_view(request):
 
 
 def login_view(request):
-    """
-    Handle user login.
-    """
+    """Handle user login."""
     if request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['password']
+        username = request.POST.get('username')
+        password = request.POST.get('password')
         user = authenticate(request, username=username, password=password)
 
         if user:
@@ -85,19 +86,21 @@ def login_view(request):
 
 
 def logout_view(request):
-    """
-    Handle user logout.
-    """
+    """Handle user logout."""
     logout(request)
     return redirect('tracker:welcome')
 
 
+# ----------------------
+# Health Views
+# ----------------------
 @login_required
 def bmi_calculator(request):
-    """
-    Calculate BMI and calories, save records, and display historical charts.
-    """
-    bmi = calories = bmi_msg = bmi_workout = None
+    """Calculate BMI and calories, save records, and display historical charts."""
+    bmi: Optional[float] = None
+    calories: Optional[float] = None
+    bmi_msg: Optional[str] = None
+    bmi_workout: Optional[str] = None
     form = HealthForm(request.POST or None)
 
     if request.method == "POST" and form.is_valid():
@@ -107,13 +110,15 @@ def bmi_calculator(request):
         steps = form.cleaned_data.get('steps') or 0
         speed = form.cleaned_data.get('speed') or 0
 
+        # BMI calculation
         if "calculate_bmi" in request.POST:
             bmi = round(weight / (height_m ** 2), 2)
-            form.initial['bmi'] = bmi
-            form.fields['bmi'].widget.attrs['value'] = bmi
             bmi_msg = bmi_suggestion(bmi)
             bmi_workout = workout_suggestion(bmi)
+            form.initial['bmi'] = bmi
+            form.fields['bmi'].widget.attrs['value'] = bmi
 
+        # Calories calculation
         if "calculate_calories" in request.POST:
             step_length = 0.762
             distance_km = (steps * step_length) / 1000
@@ -122,34 +127,36 @@ def bmi_calculator(request):
             form.initial['calories'] = calories
             form.fields['calories'].widget.attrs['value'] = calories
 
+        # Save record
         if "save_record" in request.POST:
             HealthRecord.objects.create(
                 user=request.user,
                 weight=weight,
                 height_cm=height_cm,
                 gender=form.cleaned_data['gender'],
-<<<<<<< HEAD
-                bmi=form.cleaned_data.get('bmi'),
-                calories=form.cleaned_data.get('calories'),
-                steps=steps,
-                speed=speed
-            )
-            bmi_msg = bmi_suggestion(bmi) if bmi else None
-            bmi_workout = workout_suggestion(bmi) if bmi else None
-            form = HealthForm()  # reset form after saving
-=======
                 bmi=bmi,
                 calories=calories,
                 steps=steps,
                 speed=speed
             )
             messages.success(request, "Record saved successfully!")
- # reset form after saving
->>>>>>> 6fdb3f8 (message updated)
+
+            # Keep last values visible
+            form = HealthForm(initial={
+                'weight': weight,
+                'height': height_cm,
+                'gender': form.cleaned_data['gender'],
+                'bmi': bmi,
+                'calories': calories,
+                'steps': steps,
+                'speed': speed
+            })
 
     # Prepare chart data
-    history_records = HealthRecord.objects.filter(user=request.user).order_by('date')
-    chart_dates = [r.date.strftime('%Y-%m-%d') for r in history_records]
+    history_records: List[HealthRecord] = list(
+        HealthRecord.objects.filter(user=request.user).order_by('date')
+    )
+    chart_dates = [r.date.strftime('%Y-%m-%d') for r in history_records]  # type: ignore
     chart_bmis = [r.bmi for r in history_records]
     chart_calories = [r.calories for r in history_records]
     chart_steps = [r.steps for r in history_records]
@@ -169,11 +176,11 @@ def bmi_calculator(request):
 
 @login_required
 def history(request):
-    """
-    Display user health record history with charts.
-    """
-    records = HealthRecord.objects.filter(user=request.user).order_by('date')
-    chart_dates = [r.date.strftime('%Y-%m-%d') for r in records]
+    """Display user health record history with charts."""
+    records: List[HealthRecord] = list(
+        HealthRecord.objects.filter(user=request.user).order_by('date')
+    )
+    chart_dates = [r.date.strftime('%Y-%m-%d') for r in records]  # type: ignore
     chart_bmis = [r.bmi for r in records]
     chart_calories = [r.calories for r in records]
     chart_steps = [r.steps for r in records]
@@ -188,10 +195,8 @@ def history(request):
 
 
 @login_required
-def edit_record(request, pk):
-    """
-    Edit a specific health record.
-    """
+def edit_record(request, pk: int):
+    """Edit a specific health record."""
     record = get_object_or_404(HealthRecord, pk=pk, user=request.user)
 
     if request.method == 'POST':
@@ -203,18 +208,16 @@ def edit_record(request, pk):
             record.steps = form.cleaned_data.get('steps') or 0
             record.speed = form.cleaned_data.get('speed') or 0
 
-            # Recalculate BMI
+            # Recalculate BMI and calories
             height_m = record.height_cm / 100
             record.bmi = round(record.weight / (height_m ** 2), 2)
-
-            # Recalculate calories
             step_length = 0.762
             distance_km = (record.steps * step_length) / 1000
             speed_factor = 1 + (record.speed - 5) * 0.05
             record.calories = round(record.weight * distance_km * speed_factor, 2)
 
             record.save()
-            messages.success(request, 'Record updated successfully!')
+            messages.success(request, "Record updated successfully!")
             return redirect('tracker:history')
     else:
         form = HealthForm(initial={
@@ -231,10 +234,8 @@ def edit_record(request, pk):
 
 
 @login_required
-def delete_record(request, record_id):
-    """
-    Delete a specific health record.
-    """
+def delete_record(request, record_id: int):
+    """Delete a specific health record."""
     record = get_object_or_404(HealthRecord, id=record_id, user=request.user)
 
     if request.method == "POST":

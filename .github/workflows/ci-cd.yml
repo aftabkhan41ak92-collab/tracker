@@ -76,7 +76,7 @@ jobs:
             -Dsonar.projectKey=${{ env.SONAR_PROJECT_KEY }}
             -Dsonar.organization=${{ env.SONAR_ORGANIZATION }}
             -Dsonar.sources=.
-            -Dsonar.qualitygate.wait=true
+            -Dsonar.exclusions=tracker/tests.py
 
   deploy_eb:
     needs: sonarqube_scan

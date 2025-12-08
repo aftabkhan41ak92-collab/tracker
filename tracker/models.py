@@ -3,6 +3,7 @@ from django.db import models
 from django.contrib.auth.models import User
 
 class HealthRecord(models.Model):
+    objects = models.Manager()
     GENDER_CHOICES = [
         ('Male', 'Male'),
         ('Female', 'Female'),

@@ -128,6 +128,7 @@ def bmi_calculator(request):
                 weight=weight,
                 height_cm=height_cm,
                 gender=form.cleaned_data['gender'],
+<<<<<<< HEAD
                 bmi=form.cleaned_data.get('bmi'),
                 calories=form.cleaned_data.get('calories'),
                 steps=steps,
@@ -136,6 +137,15 @@ def bmi_calculator(request):
             bmi_msg = bmi_suggestion(bmi) if bmi else None
             bmi_workout = workout_suggestion(bmi) if bmi else None
             form = HealthForm()  # reset form after saving
+=======
+                bmi=bmi,
+                calories=calories,
+                steps=steps,
+                speed=speed
+            )
+            messages.success(request, "Record saved successfully!")
+ # reset form after saving
+>>>>>>> 6fdb3f8 (message updated)
 
     # Prepare chart data
     history_records = HealthRecord.objects.filter(user=request.user).order_by('date')

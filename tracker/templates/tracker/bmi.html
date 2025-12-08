@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en" xml:lang="en">
 <head>
@@ -31,18 +30,9 @@
             gap: 20px;
         }
 
-        .form-column {
+        .form-column, .results-column {
             flex: 1;
             min-width: 320px;
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 6px 15px rgba(0,0,0,0.08);
-        }
-
-        .results-column {
-            flex: 1;
-            min-width: 300px;
             background: #fff;
             padding: 20px;
             border-radius: 8px;
@@ -122,6 +112,22 @@
             text-decoration: underline;
         }
 
+        .alert {
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
     </style>
 </head>
 <body>
@@ -133,6 +139,18 @@
 <div class="main">
     <!-- Left Column: Form -->
     <div class="form-column">
+
+        <!-- Django Messages -->
+        {% if messages %}
+        <div>
+            {% for message in messages %}
+                <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
         <form method="POST">
             {% csrf_token %}
 
@@ -197,12 +215,8 @@
                 {% endif %}
             {% endwith %}
             
-            {% if bmi %}
-    <p><strong>Your BMI:</strong> {{ bmi }}</p>
-    <p><strong>Suggestion:</strong> {{ bmi_msg }}</p>
-    <p><strong>Workout Tip:</strong> {{ bmi_workout }}</p>
-{% endif %}
-
+            <p><strong>Suggestion:</strong> {{ bmi_msg }}</p>
+            <p><strong>Workout Tip:</strong> {{ bmi_workout }}</p>
         </div>
         {% endif %}
 
@@ -210,13 +224,6 @@
         <div class="results">
             <h2>{{ calories }} kcal</h2>
             <p>Calories Burned</p>
-        </div>
-        {% endif %}
-
-        {% if suggestion %}
-        <div class="suggestion">
-            <strong>Workout Suggestion:</strong>
-            <p>{{ suggestion }}</p>
         </div>
         {% endif %}
     </div>
